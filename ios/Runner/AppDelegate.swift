@@ -104,24 +104,39 @@ final class ARKitPlatformView: NSObject, FlutterPlatformView, ARSessionDelegate 
 
   private func closestPlaneData(frame: ARFrame) -> ClosestPlaneData? {
     let cameraTransform = frame.camera.transform
+    
+    // Camera position in WORLD coordinates
     let cameraPosition = SIMD3<Float>(
         cameraTransform.columns.3.x,
         cameraTransform.columns.3.y,
         cameraTransform.columns.3.z
     )
     
+    // World → Camera transform
+    let worldToCamera = simd_inverse(cameraTransform)
+    
     var best: ClosestPlaneData?
     var bestDistance: Float = .infinity
     
     for anchor in frame.anchors {
-        guard let plane = anchor as? ARPlaneAnchor, plane.alignment == .horizontal else { continue }
+        guard let plane = anchor as? ARPlaneAnchor,
+              plane.alignment == .horizontal else { continue }
         
-        // Get plane center in world coordinates
+        // ------------------------------------------------
+        // 1️⃣ Plane center in WORLD coordinates
+        // ------------------------------------------------
         let localCenter = SIMD4<Float>(plane.center.x, 0, plane.center.z, 1)
         let worldCenter4 = simd_mul(plane.transform, localCenter)
-        let planePoint = SIMD3<Float>(worldCenter4.x, worldCenter4.y, worldCenter4.z)
+        let planePointWorld = SIMD3<Float>(
+            worldCenter4.x,
+            worldCenter4.y,
+            worldCenter4.z
+        )
         
-        let planeNormal = simd_normalize(
+        // ------------------------------------------------
+        // 2️⃣ Plane normal in WORLD coordinates
+        // ------------------------------------------------
+        let planeNormalWorld = simd_normalize(
             SIMD3<Float>(
                 plane.transform.columns.1.x,
                 plane.transform.columns.1.y,
@@ -129,40 +144,84 @@ final class ARKitPlatformView: NSObject, FlutterPlatformView, ARSessionDelegate 
             )
         )
         
-        // For a horizontal plane, compute perpendicular distance from camera to plane
-        // This is simply the height difference divided by the normal's Y component
-        // which for horizontal planes is essentially the Y difference
-        let heightDiff = cameraPosition.y - planePoint.y
+        // ------------------------------------------------
+        // 3️⃣ Convert plane center → CAMERA coordinates
+        // ------------------------------------------------
+        let planePointWorld4 = SIMD4<Float>(
+            planePointWorld.x,
+            planePointWorld.y,
+            planePointWorld.z,
+            1.0
+        )
+        let planePointCamera4 = simd_mul(worldToCamera, planePointWorld4)
+        let planePointCamera = SIMD3<Float>(
+            planePointCamera4.x,
+            planePointCamera4.y,
+            planePointCamera4.z
+        )
         
-        // Distance from camera to plane along viewing direction
-        // For camera looking down at the table at angle θ from vertical:
-        // distance = heightDiff / cos(θ)
-        // We approximate this using the camera's actual viewing angle
+        // ------------------------------------------------
+        // 4️⃣ Convert plane normal → CAMERA coordinates
+        // ------------------------------------------------
+        let planeNormalWorld4 = SIMD4<Float>(
+            planeNormalWorld.x,
+            planeNormalWorld.y,
+            planeNormalWorld.z,
+            0.0
+        )
+        let planeNormalCamera4 = simd_mul(worldToCamera, planeNormalWorld4)
+        let planeNormalCamera = simd_normalize(
+            SIMD3<Float>(
+                planeNormalCamera4.x,
+                planeNormalCamera4.y,
+                planeNormalCamera4.z
+            )
+        )
         
-        // Get the viewing direction's angle with vertical
+        // ------------------------------------------------
+        // 5️⃣ Compute viewing-direction distance
+        // ------------------------------------------------
         let cameraForward = -SIMD3<Float>(
             cameraTransform.columns.2.x,
             cameraTransform.columns.2.y,
             cameraTransform.columns.2.z
         )
         
-        // Project camera forward onto plane normal to get cos(angle)
-        let cosAngle = abs(simd_dot(cameraForward, planeNormal))
+        let heightDiff = cameraPosition.y - planePointWorld.y
+        let cosAngle = abs(simd_dot(cameraForward, planeNormalWorld))
         
-        guard cosAngle > 0.1 else { continue }  // Skip if nearly parallel
+        guard cosAngle > 0.1 else { continue }
         
-        // Distance along viewing direction to hit the plane
         let distance = abs(heightDiff) / cosAngle
         
         if distance < bestDistance && distance > 0.01 && distance < 2.0 {
             bestDistance = distance
+            
+            // ================= DEBUG BLOCK =================
+            NSLog("========== ARKIT DEBUG ==========")
+            NSLog("Camera position (world): %@", String(describing: cameraPosition))
+            NSLog("Camera forward (world): %@", String(describing: cameraForward))
+            
+            NSLog("Plane center (world): %@", String(describing: planePointWorld))
+            NSLog("Plane normal (world): %@", String(describing: planeNormalWorld))
+            
+            NSLog("Plane center (camera): %@", String(describing: planePointCamera))
+            NSLog("Plane normal (camera): %@", String(describing: planeNormalCamera))
+            
+            NSLog("Height difference: %f", heightDiff)
+            NSLog("Cos(angle): %f", cosAngle)
+            NSLog("Computed plane distance (m): %f", distance)
+            NSLog("=================================")
+            // =================================================
+            
             best = ClosestPlaneData(
                 distanceMeters: Double(distance),
-                center: planePoint,
-                normal: planeNormal
+                center: planePointCamera,   // CAMERA COORDS
+                normal: planeNormalCamera  // CAMERA COORDS
             )
         }
     }
+    
     return best
   }
 

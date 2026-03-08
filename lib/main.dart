@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,8 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
-//const String kDefaultEndpoint = 'https://foodvolume.yellowwater-ed024144.eastasia.azurecontainerapps.io/estimate_volume';
-const String kDefaultEndpoint = 'http://192.168.1.9:8000/estimate_volume';
+const String kDefaultEndpoint = 'http://192.168.1.4:8000/estimate_volume';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +20,7 @@ class ResearchClientApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Research Client',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFF0D3B66),
@@ -65,9 +64,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
     }
 
     final endpoint = _endpointController.text.trim();
-    if (endpoint.isEmpty || endpoint.contains('<your-azure-url>')) {
+    if (endpoint.isEmpty || endpoint.contains('<your-backend-url>')) {
       setState(() {
-        _status = 'Set your Azure endpoint before sending.';
+        _status = 'Set your backend endpoint before sending.';
       });
       return;
     }
@@ -178,7 +177,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
               controller: _endpointController,
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
-                labelText: 'Azure endpoint',
+                labelText: 'Endpoint',
                 hintText: 'https://your-app.azurecontainerapps.io/estimate_volume',
                 border: OutlineInputBorder(),
               ),
