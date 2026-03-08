@@ -1,12 +1,12 @@
---extra-index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://download.pytorch.org/whl/cu121
 
 git+https://github.com/apple/ml-depth-pro.git
 
 numpy==1.26.4
 opencv-python
 
-torch==2.1.2+cpu
-torchvision==0.16.2+cpu
+torch==2.1.2
+torchvision==0.16.2
 
 fastapi
 uvicorn

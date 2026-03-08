@@ -32,7 +32,7 @@ print("Depth Pro loaded.")
 # ROOT
 @app.get("/")
 def root():
-    return {"status": "Food volume backend (Depth Pro - Clean Geometric Version)"}
+    return {"status": "Metric food volume backend)"}
 
 # VOLUME ENDPOINT
 @app.post("/estimate_volume")
