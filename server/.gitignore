@@ -1,0 +1,19 @@
+# Python
+venv/
+__pycache__/
+*.py[cod]
+
+# Model weights (large binary files)
+*.pt
+
+# Datasets/archives
+*.zip
+
+# Test images & outputs
+*.jpg
+*.jpeg
+*.HEIC
+*.png
+
+# Results
+results.csv
